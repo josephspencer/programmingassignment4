@@ -1,6 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <istream>
 #include <string.h>
 #include <unordered_map>
 #include <pthread.h>
@@ -22,36 +23,37 @@ void login(int s, char username[], unordered_map<string, string> &userPasswordKe
 			exit(1);
 		}
 		if (recv(s, buf, sizeof(buf), 0) == -1) {
-                	perror("Recieve error\n");
-        	}
-        	string bufPass(buf);
-        	if (userPasswordKey.at(userstring) != bufPass) { // incorrect password
-			while (userPasswordKey.at(userstring) != bufPass) {
-				if (send(s, "N", sizeof("N"), 0) == -1) {
-                        		perror("Send error\n");
-                        		exit(1);
-                		}
-				if (recv(s, buf, sizeof(buf), 0) == -1) {
-                 		         perror("Recieve error\n");
-                		}
-                		string bufPass(buf);
-			}	
+      perror("Recieve error\n");
+    }
+    string bufPass(buf);
+    if (userPasswordKey[userstring] != bufPass) { // incorrect password
+	    while (userPasswordKey[userstring] != bufPass) {
+		    if (send(s, "N", sizeof("N"), 0) == -1) {
+          perror("Send error\n");
+          exit(1);
+        }
+		    if (recv(s, buf, sizeof(buf), 0) == -1) {
+          perror("Recieve error\n");
+        }
+        string bufPass(buf);
+	    }	
 		}
 		if (send(s, "Y", sizeof("N"), 0) == -1) {
-                	perror("Send error\n");
-                        exit(1);
-                }
+      perror("Send error\n");
+      exit(1);
+    }
 	}
 	else { // not in map
 		if (send(s, "N", sizeof("N"), 0) == -1) {
-                        perror("Send error\n");
-                        exit(1);
-                }
+      perror("Send error\n");
+      exit(1);
+    }
 		if (recv(s, buf, sizeof(buf), 0) == -1) {
-                        perror("Recieve error\n");
-                }
-                string bufPass(buf);
-		userPasswordKey.insert(make_pair(userstring, bufPass));		
+      perror("Recieve error\n");
+      exit(1);
+    }
+    string bufPass(buf);
+		userPasswordKey[userstring] = bufPass;	
 	}
 }
 
@@ -62,9 +64,8 @@ int main(int argc, char * argv[]) {
 	unordered_map<string, string> userPasswordKey;
 	ifstream ifs("user_passwords.txt");
 	if (ifs.is_open()) {
-		while (getline(ifs, line)) {
-			user >> line;
-			password >> line;
+		while (ifs >> user) {
+			ifs >> password;
 			userPasswordKey.insert(make_pair(user, password));
 		}
 	}
