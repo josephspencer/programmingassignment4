@@ -16,8 +16,9 @@ using namespace std;
 
 unordered_map<string, string> userPasswordKey;
 unordered_map<string, int> online_users;
+int NUM_THREADS = 0;
 
-void login(int s) {
+string login(int s) {
   char username[MAX_LINE];
   if (recv(s, username, sizeof(username), 0) == -1){
     perror("Receive error\n");
@@ -36,8 +37,8 @@ void login(int s) {
       exit(1);
     }
     string bufPass(buf);
-    if (userPasswordKey[userstring] != bufPass) { // incorrect password
-	    while (userPasswordKey[userstring] != bufPass) {
+    if (strcmp(userPasswordKey[userstring].c_str(), bufPass.c_str())) { // incorrect password
+	    while (strcmp(userPasswordKey[userstring].c_str(), bufPass.c_str())) {
 		    if (send(s, "N", sizeof("N"), 0) == -1) {
           perror("Send error\n");
           exit(1);
@@ -47,7 +48,8 @@ void login(int s) {
           perror("Receive error\n");
           exit(1);
         }
-        string bufPass(buf);
+        string temp(buf);
+        bufPass = temp;
 	    }	
 		}
 		if (send(s, "Y", sizeof("N"), 0) == -1) {
@@ -56,7 +58,7 @@ void login(int s) {
     }
 	}
 	else { // not in map
-		if (send(s, "N", sizeof("N"), 0) == -1) {
+		if (send(s, "N", strlen("N"), 0) == -1) {
       perror("Send error\n");
       exit(1);
     }
@@ -68,16 +70,121 @@ void login(int s) {
     string bufPass(buf);
 		userPasswordKey[userstring] = bufPass;	
 	  ofstream ofs;
-	  ofs.open("user_passwords.txt");
+	  ofs.open("user_passwords.txt", std::ios::app);
 	  ofs << userstring << " " << bufPass << "\n";
     ofs.close();
 	}
   online_users[userstring] = s;
+  return userstring;
+}
+
+void broadcast_message(string username, int s){
+  string m = "CEnter Message: ";
+  if (send(s, m.c_str(), strlen(m.c_str()), 0) == -1){
+    perror("Send error\n");
+    exit(1);
+  }
+  char buf[MAX_LINE];
+  if (recv(s, buf, sizeof(buf), 0) == -1){
+    perror("Send error\n");
+    exit(1);
+  }
+  string message(buf);
+  message = "D####\tMessage received from " + username + ": " + message + "\t####";
+  for (auto user : online_users){
+    if (user.first != username){
+      if (send(user.second, message.c_str(), strlen(message.c_str()), 0) == -1){
+        perror("Send error\n");
+        exit(1);
+      }
+    }
+  }
+}
+
+void private_message(string username, int s){
+  string m = "CEnter message: ";
+  string n = "CUsers online:\n";
+  for (auto u : online_users){
+    n = n + u.first + "\n";
+  }
+  n += "Enter user: ";
+  if (send(s, n.c_str(), strlen(n.c_str()), 0) == -1){
+    perror("Send error\n");
+    exit(1);
+  }
+  char buf[MAX_LINE];
+  bzero(buf, MAX_LINE);
+  if (recv(s, buf, sizeof(buf), 0) == -1){
+    perror("Receive error\n");
+    exit(1);
+  }
+  string user(buf);
+  while (online_users.find(user) == online_users.end()){
+    if (send(s, n.c_str(), strlen(n.c_str()), 0) == -1){
+      perror("Send error\n");
+      exit(1);
+    }
+    bzero(buf, MAX_LINE);
+    if (recv(s, buf, sizeof(buf), 0) == -1){
+      perror("Receive error\n");
+      exit(1);
+    }
+    string name(buf);
+    user = name;
+  }
+  //send confirmation that user is correct
+  if (send(s, "CUser is online\n", strlen("CUser is online\n"), 0) == -1){
+    perror("Send error\n");
+    exit(1);
+  }
+  bzero(buf, MAX_LINE);
+  if (recv(s, buf, sizeof(buf), 0) == -1){
+    perror("Receive error\n");
+    exit(1);
+  }
+  string in(buf);
+  if (send(s, m.c_str(), strlen(m.c_str()), 0) == -1){
+    perror("Send error\n");
+    exit(1);
+  }
+  bzero(buf, MAX_LINE);
+  if (recv(s, buf, sizeof(buf), 0) == -1){
+    perror("Receive error\n");
+    exit(1);
+  }
+  string message(buf);
+  message = "D####\tMessage received from " + username + ": " + message + "\t####";
+  if (send(online_users[user], message.c_str(), strlen(message.c_str()), 0) == -1){
+    perror("Send error\n");
+    exit(1);
+  }
 }
 
 void *clientinteraction(void *s){
   int new_s = *(int*)s;
-  login(new_s);
+  string user = login(new_s);
+  while (1){
+    string op = "CEnter P for private conversation\nEnter B for message broadcasting\nEnter E for Exit\n";
+    if (send(new_s, op.c_str(), strlen(op.c_str()), 0) == -1){
+      perror("Send error\n");
+      exit(1);
+    }
+    char buf[MAX_LINE];
+    if (recv(new_s, buf, sizeof(buf), 0) == -1){
+      perror("Receive error\n");
+      exit(1);
+    }
+    if (!strncmp("E", buf, 1)){
+      cout << "EXIT" << endl;
+      NUM_THREADS--;
+      online_users.erase(user);
+      pthread_exit(NULL);
+    } else if (!strncmp("B", buf, 1)){
+      broadcast_message(user, new_s);
+    } else {
+      private_message(user, new_s);
+    }
+  }
 }
 
 
@@ -85,7 +192,6 @@ int main(int argc, char * argv[]) {
 	string line;
 	string user;
 	string password;
-	unordered_map<string, string> userPasswordKey;
 	ifstream ifs("user_passwords.txt");
 	if (ifs.is_open()) {
 		while (ifs >> user) {
@@ -96,7 +202,7 @@ int main(int argc, char * argv[]) {
 	ifs.close();
   struct sockaddr_in sin, client_addr;
   char buf[MAX_LINE], outBuf[MAX_LINE];
-  int addr_len, s, client_sock, opt = 1, NUM_THREADS;
+  int addr_len, s, client_sock, opt = 1;
   struct timeval t1;
   socklen_t len;
 

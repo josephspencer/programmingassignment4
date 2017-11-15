@@ -7,17 +7,133 @@
 #include <netdb.h>
 #include <fcntl.h>
 #include <string.h>
-#define EXIT 0
+#include <string>
 #define MAX_LINE 4096
 using namespace std;
 
-void private_message(){
+int EXIT = 0;
+int ACTIVE = 1;
+int COUNT = 0;
+string LAST_COMMAND = "";
+string CURR_COMMAND = "";
 
+void private_message(int s){
+  if (send(s, "P", strlen("P"), 0) == -1){
+    perror("Send error\n");
+    exit(1);
+  }
+  /*char buf[MAX_LINE];
+  if (recv(s, buf, sizeof(buf), 0) == -1){
+    perror("Receive error\n");
+    exit(1);
+  }
+  string output(buf);
+  cout << output.substr(1);
+  LAST_COMMAND = output.substr(1);*/
+  while (strncmp("Users", LAST_COMMAND.c_str(), 5)){
+
+  }
+  string name;
+  cin >> name;
+  int c = COUNT;
+  if (send(s, name.c_str(), strlen(name.c_str()), 0) == -1){
+    perror("Send error\n");
+    exit(1);
+  }
+  /*bzero(buf, MAX_LINE);
+  if (recv(s, buf, sizeof(buf), 0) == -1){
+    perror("Receive error\n");
+    exit(1);
+  }*/
+  //while user not online
+  while (strncmp("User ", LAST_COMMAND.c_str(), 5)){
+    if (c < COUNT && strncmp("User ", LAST_COMMAND.c_str(), 5)){
+      c++;
+    /*string prompt(buf);
+    cout << prompt.substr(1);
+    LAST_COMMAND = prompt.substr(1);*/
+      name.clear();
+      cin >> name;
+      if (send(s, name.c_str(), strlen(name.c_str()), 0) == -1){
+        perror("Send error\n");
+        exit(1); 
+      }
+    }
+    /*bzero(buf, MAX_LINE);
+    if (recv(s, buf, sizeof(buf), 0) == -1){
+      perror("Receive error\n");
+      exit(1);
+    }*/
+  }
+  //send confirmation that confirmation was received
+  if (send(s, "Y", strlen("Y"), 0) == -1){
+    perror("Send error\n");
+    exit(1);
+  }
+  /*bzero(buf, MAX_LINE);
+  if (recv(s, buf, sizeof(buf), 0) == -1){
+    perror("Receive error\n");
+    exit(1);
+  }
+  string message(buf);
+  cout << message.substr(1);
+  LAST_COMMAND = message.substr(1);*/
+  while (strncmp("Enter", LAST_COMMAND.c_str(), 5)){
+
+  }
+  string m;
+  cin >> m;
+  if (send(s, m.c_str(), strlen(m.c_str()), 0) == -1){
+    perror("Send error\n");
+    exit(1);
+  }
 }
 
-void broadcast(){
-  string message;
-  
+void broadcast(int s){
+  char buf[MAX_LINE];
+  if (send(s, "B", strlen("B"), 0) == -1){
+    perror("Send error\n");
+    exit(1);
+  }
+  /*if (recv(s, buf, sizeof(buf), 0) == -1){
+    perror("Receive error\n");
+    exit(1);
+  }
+  string message(buf);
+  cout << message.substr(1);
+  LAST_COMMAND = message.substr(1);*/
+  string m;
+  cin >> m;
+  if (send(s, m.c_str(), strlen(m.c_str()), 0) == -1){
+    perror("Send error\n");
+    exit(1);
+  }
+}
+
+void *handle_messages(void *s){
+  int new_s = *(int*)s;
+  while (ACTIVE){
+    char buf[MAX_LINE];
+    bzero(buf, MAX_LINE);
+    if (recv(new_s, buf, sizeof(buf), 0) == -1){
+      perror("Receive error\n");
+      exit(1);
+    }
+    string output(buf);
+    if (!strncmp(buf, "D", 1)){
+      cout << "Incoming message\n" << output.substr(1) << endl << LAST_COMMAND << std::flush << endl;
+      //data message
+      //display?
+    } else {
+      cout << output.substr(1) << std::flush;
+      LAST_COMMAND.clear();
+      LAST_COMMAND = output.substr(1);
+      COUNT++;
+      //command message
+      //thread join?
+    }
+  }
+  return 0;
 }
 
 void login(int s, char* username){
@@ -43,24 +159,26 @@ void login(int s, char* username){
     perror("Send error\n");
     exit(1);
   }
-  bzero(buf, MAX_LINE);
-  if (recv(s, buf, sizeof(buf), 0) == -1){
-    perror("Receive error\n");
-  }
-  //while password is incorrect
-  while (strncmp("Y", buf, 1)){
-    printf("Incorrect password. Try again >> ");
-    cin >> password;
-    if (send(s, password.c_str(), strlen(password.c_str()), 0) == -1){
-      perror("Send error\n");
-      exit(1);
-    }
+  if (strncmp("N", buf, 1)){
     bzero(buf, MAX_LINE);
     if (recv(s, buf, sizeof(buf), 0) == -1){
       perror("Receive error\n");
     }
+    //while password is incorrect
+    while (strncmp("Y", buf, 1)){
+      printf("Incorrect password. Try again >> ");
+      cin >> password;
+      if (send(s, password.c_str(), strlen(password.c_str()), 0) == -1){
+        perror("Send error\n");
+        exit(1);
+      }
+      bzero(buf, MAX_LINE);
+      if (recv(s, buf, sizeof(buf), 0) == -1){
+        perror("Receive error\n");
+      }
+    }
   }
-  printf("Welcome %s. Login successful.", username);
+  printf("Welcome %s. Login successful.\n", username);
 }
 
 int main(int argc, char * argv[]) {
@@ -103,22 +221,28 @@ int main(int argc, char * argv[]) {
 	while(!EXIT) {
 		login(s, username);
 
-		/*pthread_t thread;
-		int rc = pthread_create(&thread, NULL, handle_messages, NULL);
-    */
+		pthread_t thread;
+		int rc = pthread_create(&thread, NULL, handle_messages, (void*)&s);
+    
 		while(1) {
-			/*if (rc) {
+			if (rc) {
 				cout << "Error: unable to create thread.\n";
 				exit(-1);
-			}*/
-
+			}
+      op.clear();
 			cin >> op;
 			
 			if (op == "P") {
-				private_message();
+				private_message(s);
 			} else if (op == "B") {
-				broadcast();
+				broadcast(s);
 			} else if (op == "E") {
+        ACTIVE = 0;
+        
+        if (send(s, "E", strlen("E"), 0) == -1){
+          perror("Send error\n");
+          exit(1);
+        }
 				exit(-1);
 			} else {
 				printf("Invalid entry.\nEnter P for private, B for broadcast, or E to exit\n");
