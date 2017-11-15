@@ -11,6 +11,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <fcntl.h>
+#define MAX_LINE 4096
 using namespace std;
 
 void login(int s, char username[], unordered_map<string, string> &userPasswordKey) {
@@ -57,6 +58,8 @@ void login(int s, char username[], unordered_map<string, string> &userPasswordKe
 	}
 }
 
+
+
 int main(int argc, char * argv[]) {
 	string line;
 	string user;
@@ -70,10 +73,41 @@ int main(int argc, char * argv[]) {
 		}
 	}
 	ifs.close();
+  struct sockaddr_in sin, client_addr;
+  char buf[MAX_LINE], outBuf[MAX_LINE];
+  int addr_len, s, client_sock, opt = 1;
+  struct timeval t1;
+  socklen_t len;
 
-/*
+  if (argc != 2){
+    fprintf(stderr, "usage: chatserver port\n");
+  }
 
-	while((client_sock = accept(s.get_s(), (struct sockaddr *)&s.s_in, &s_inlen)) > 0) {
+  bzero((char*)&sin, sizeof(sin));
+  sin.sin_family = AF_INET;
+  sin.sin_addr.s_addr = INADDR_ANY;
+  sin.sin_port = htons((atoi(argv[1])));
+  if ((s = socket(PF_INET, SOCK_STREAM, 0)) < 0){
+    perror("ftp-server: socket\n");
+    exit(1);
+  }
+
+  if ((setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char*)&opt, sizeof(int))) < 0){
+    perror("ftp-server: setsockopt\n");
+    exit(1);
+  }
+
+  if ((bind(s, (struct sockaddr*)&sin, sizeof(sin))) < 0){
+    perror("ftp-server: bind\n");
+    exit(1);
+  }
+  
+  if ((listen(s, 1)) < 0){
+    perror("ftp-server: listen\n");
+    exit(1);
+  }
+  
+	while((client_sock = accept(s, (struct sockaddr *)&sin, &len)) > 0) {
 		if (NUM_THREADS == 10) {
 			cout << "Connection refused: max clients online.\n";
 			continue;
@@ -90,5 +124,4 @@ int main(int argc, char * argv[]) {
 	}
 
 	//s.close_socket(0);
-*/
 }
