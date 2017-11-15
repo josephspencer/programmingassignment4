@@ -14,17 +14,26 @@
 #define MAX_LINE 4096
 using namespace std;
 
-void login(int s, char username[], unordered_map<string, string> &userPasswordKey) {
+unordered_map<string, string> userPasswordKey;
+unordered_map<string, int> online_users;
+
+void login(int s) {
+  char username[MAX_LINE];
+  if (recv(s, username, sizeof(username), 0) == -1){
+    perror("Receive error\n");
+    exit(1);
+  } 
 	string userstring(username);
 	auto search = userPasswordKey.find(userstring);
-	char buf[496];
+	char buf[MAX_LINE];
 	if (search != userPasswordKey.end()) { // in map
 		if (send(s, "E", sizeof("N"), 0) == -1) {
 			perror("Send error\n");
 			exit(1);
 		}
 		if (recv(s, buf, sizeof(buf), 0) == -1) {
-      perror("Recieve error\n");
+      perror("Receive error\n");
+      exit(1);
     }
     string bufPass(buf);
     if (userPasswordKey[userstring] != bufPass) { // incorrect password
@@ -33,8 +42,10 @@ void login(int s, char username[], unordered_map<string, string> &userPasswordKe
           perror("Send error\n");
           exit(1);
         }
+        bzero(buf, MAX_LINE);
 		    if (recv(s, buf, sizeof(buf), 0) == -1) {
-          perror("Recieve error\n");
+          perror("Receive error\n");
+          exit(1);
         }
         string bufPass(buf);
 	    }	
@@ -49,21 +60,25 @@ void login(int s, char username[], unordered_map<string, string> &userPasswordKe
       perror("Send error\n");
       exit(1);
     }
+    bzero(buf, MAX_LINE);
 		if (recv(s, buf, sizeof(buf), 0) == -1) {
-      perror("Recieve error\n");
+      perror("Receive error\n");
       exit(1);
     }
     string bufPass(buf);
 		userPasswordKey[userstring] = bufPass;	
-	ofstream ofs;
-	ofs.open("user_passwords.txt");
-	ofs << userstring << " " << bufPass << "\n";
-	}	
-	
-	
-		
+	  ofstream ofs;
+	  ofs.open("user_passwords.txt");
+	  ofs << userstring << " " << bufPass << "\n";
+    ofs.close();
+	}
+  online_users[userstring] = s;
 }
 
+void *clientinteraction(void *s){
+  int new_s = *(int*)s;
+  login(new_s);
+}
 
 
 int main(int argc, char * argv[]) {
@@ -81,7 +96,7 @@ int main(int argc, char * argv[]) {
 	ifs.close();
   struct sockaddr_in sin, client_addr;
   char buf[MAX_LINE], outBuf[MAX_LINE];
-  int addr_len, s, client_sock, opt = 1;
+  int addr_len, s, client_sock, opt = 1, NUM_THREADS;
   struct timeval t1;
   socklen_t len;
 
@@ -120,14 +135,15 @@ int main(int argc, char * argv[]) {
 		}
 		cout << "Connection accepted.\n";
 		pthread_t thread;
-		struct thread_args args;
+    //may have to create custom struct
+		//struct thread_args args;
 		NUM_THREADS++;
 
-		if (pthread_create(&thread, NULL, clientinteraction, (void*)&args) < 0) {
+		if (pthread_create(&thread, NULL, clientinteraction, (void*)&client_sock) < 0) {
 			perror("Error creating thread");
 			return 1;
 		}
 	}
 
-	//s.close_socket(0);
+	close(s);
 }
