@@ -14,24 +14,17 @@ using namespace std;
 int EXIT = 0;
 int ACTIVE = 1;
 int COUNT = 0;
+//global string to hold last command received by message handler thread
 string LAST_COMMAND = "";
-string CURR_COMMAND = "";
 
 void private_message(int s){
   if (send(s, "P", strlen("P"), 0) == -1){
     perror("Send error\n");
     exit(1);
   }
-  /*char buf[MAX_LINE];
-  if (recv(s, buf, sizeof(buf), 0) == -1){
-    perror("Receive error\n");
-    exit(1);
-  }
-  string output(buf);
-  cout << output.substr(1);
-  LAST_COMMAND = output.substr(1);*/
+  //wait until list of users is received
   while (strncmp("Users", LAST_COMMAND.c_str(), 5)){
-
+  
   }
   string name;
   cin >> name;
@@ -40,18 +33,16 @@ void private_message(int s){
     perror("Send error\n");
     exit(1);
   }
-  /*bzero(buf, MAX_LINE);
-  if (recv(s, buf, sizeof(buf), 0) == -1){
-    perror("Receive error\n");
-    exit(1);
-  }*/
-  //while user not online
+  //while user not online, prompt for another user
   while (strncmp("User ", LAST_COMMAND.c_str(), 5)){
+    //only prompt for another user if c < COUNT and user not online
+    //c represents the value of a counter before the entering of the loop,
+    //set equal to a global variable count increased by the message handler
+    //when a message is received. The purpose of this comparison is to ensure that
+    //the new message has been received rather than comparing against the old message
+    //and prompting the user before the message has been received
     if (c < COUNT && strncmp("User ", LAST_COMMAND.c_str(), 5)){
       c++;
-    /*string prompt(buf);
-    cout << prompt.substr(1);
-    LAST_COMMAND = prompt.substr(1);*/
       name.clear();
       cin >> name;
       if (send(s, name.c_str(), strlen(name.c_str()), 0) == -1){
@@ -59,30 +50,19 @@ void private_message(int s){
         exit(1); 
       }
     }
-    /*bzero(buf, MAX_LINE);
-    if (recv(s, buf, sizeof(buf), 0) == -1){
-      perror("Receive error\n");
-      exit(1);
-    }*/
   }
   //send confirmation that confirmation was received
   if (send(s, "Y", strlen("Y"), 0) == -1){
     perror("Send error\n");
     exit(1);
   }
-  /*bzero(buf, MAX_LINE);
-  if (recv(s, buf, sizeof(buf), 0) == -1){
-    perror("Receive error\n");
-    exit(1);
-  }
-  string message(buf);
-  cout << message.substr(1);
-  LAST_COMMAND = message.substr(1);*/
+  //wait until enter message is received from server
   while (strncmp("Enter", LAST_COMMAND.c_str(), 5)){
 
   }
   string m;
   cin >> m;
+  //send message
   if (send(s, m.c_str(), strlen(m.c_str()), 0) == -1){
     perror("Send error\n");
     exit(1);
@@ -95,15 +75,13 @@ void broadcast(int s){
     perror("Send error\n");
     exit(1);
   }
-  /*if (recv(s, buf, sizeof(buf), 0) == -1){
-    perror("Receive error\n");
-    exit(1);
+  //wait until enter message from server has been received
+  while (strncmp("Enter", LAST_COMMAND.c_str(), 5)){
+
   }
-  string message(buf);
-  cout << message.substr(1);
-  LAST_COMMAND = message.substr(1);*/
   string m;
   cin >> m;
+  //send message
   if (send(s, m.c_str(), strlen(m.c_str()), 0) == -1){
     perror("Send error\n");
     exit(1);
@@ -121,16 +99,14 @@ void *handle_messages(void *s){
     }
     string output(buf);
     if (!strncmp(buf, "D", 1)){
-      cout << "Incoming message\n" << output.substr(1) << endl << LAST_COMMAND << std::flush << endl;
-      //data message
-      //display?
+      //if data message, display incoming message and then previous command from server
+      cout << "Incoming message\n" << output.substr(1) << endl << LAST_COMMAND << std::flush;
     } else {
+      //if command message, display it and update global string
       cout << output.substr(1) << std::flush;
       LAST_COMMAND.clear();
       LAST_COMMAND = output.substr(1);
       COUNT++;
-      //command message
-      //thread join?
     }
   }
   return 0;
@@ -159,6 +135,7 @@ void login(int s, char* username){
     perror("Send error\n");
     exit(1);
   }
+  //if existing user, receive whether password was correct
   if (strncmp("N", buf, 1)){
     bzero(buf, MAX_LINE);
     if (recv(s, buf, sizeof(buf), 0) == -1){
@@ -187,7 +164,7 @@ int main(int argc, char * argv[]) {
   struct sockaddr_in sin;
   int s;
   string op;
-  
+
   if (argc == 4){
     host = argv[1];
     port = argv[2];
@@ -230,15 +207,13 @@ int main(int argc, char * argv[]) {
 				exit(-1);
 			}
       op.clear();
-			cin >> op;
-			
+			cin >> op;	
 			if (op == "P") {
 				private_message(s);
 			} else if (op == "B") {
 				broadcast(s);
 			} else if (op == "E") {
-        ACTIVE = 0;
-        
+        ACTIVE = 0;       
         if (send(s, "E", strlen("E"), 0) == -1){
           perror("Send error\n");
           exit(1);
@@ -248,7 +223,6 @@ int main(int argc, char * argv[]) {
 				printf("Invalid entry.\nEnter P for private, B for broadcast, or E to exit\n");
 			}
 		}
-		
 		close(s);
 	}
 	return 0;

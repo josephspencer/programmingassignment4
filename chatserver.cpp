@@ -27,17 +27,20 @@ string login(int s) {
 	string userstring(username);
 	auto search = userPasswordKey.find(userstring);
 	char buf[MAX_LINE];
-	if (search != userPasswordKey.end()) { // in map
+  //if user is in map and thus is an existing user
+	if (search != userPasswordKey.end()) {
 		if (send(s, "E", sizeof("N"), 0) == -1) {
 			perror("Send error\n");
 			exit(1);
 		}
+    //receive password
 		if (recv(s, buf, sizeof(buf), 0) == -1) {
       perror("Receive error\n");
       exit(1);
     }
     string bufPass(buf);
-    if (strcmp(userPasswordKey[userstring].c_str(), bufPass.c_str())) { // incorrect password
+    //if incorrect password, continue to prompt user for password
+    if (strcmp(userPasswordKey[userstring].c_str(), bufPass.c_str())) {
 	    while (strcmp(userPasswordKey[userstring].c_str(), bufPass.c_str())) {
 		    if (send(s, "N", sizeof("N"), 0) == -1) {
           perror("Send error\n");
@@ -52,28 +55,33 @@ string login(int s) {
         bufPass = temp;
 	    }	
 		}
+    //send confirmation that password was correct
 		if (send(s, "Y", sizeof("N"), 0) == -1) {
       perror("Send error\n");
       exit(1);
     }
-	}
-	else { // not in map
+	} else {
+    //user not in map, so new user
 		if (send(s, "N", strlen("N"), 0) == -1) {
       perror("Send error\n");
       exit(1);
     }
     bzero(buf, MAX_LINE);
+    //receive password
 		if (recv(s, buf, sizeof(buf), 0) == -1) {
       perror("Receive error\n");
       exit(1);
     }
     string bufPass(buf);
-		userPasswordKey[userstring] = bufPass;	
+    //add username and password to map
+		userPasswordKey[userstring] = bufPass;
+    //write username and password to file  
 	  ofstream ofs;
 	  ofs.open("user_passwords.txt", std::ios::app);
 	  ofs << userstring << " " << bufPass << "\n";
     ofs.close();
 	}
+  //add username and socket descriptor to online users map
   online_users[userstring] = s;
   return userstring;
 }
@@ -85,12 +93,14 @@ void broadcast_message(string username, int s){
     exit(1);
   }
   char buf[MAX_LINE];
+  //receive message
   if (recv(s, buf, sizeof(buf), 0) == -1){
     perror("Send error\n");
     exit(1);
   }
   string message(buf);
   message = "D####\tMessage received from " + username + ": " + message + "\t####";
+  //send message to all online users other than the sending user
   for (auto user : online_users){
     if (user.first != username){
       if (send(user.second, message.c_str(), strlen(message.c_str()), 0) == -1){
@@ -104,21 +114,25 @@ void broadcast_message(string username, int s){
 void private_message(string username, int s){
   string m = "CEnter message: ";
   string n = "CUsers online:\n";
+  //add online users to string to send to sending user
   for (auto u : online_users){
     n = n + u.first + "\n";
   }
   n += "Enter user: ";
+  //send list of users and prompt for user
   if (send(s, n.c_str(), strlen(n.c_str()), 0) == -1){
     perror("Send error\n");
     exit(1);
   }
   char buf[MAX_LINE];
   bzero(buf, MAX_LINE);
+  //receive user
   if (recv(s, buf, sizeof(buf), 0) == -1){
     perror("Receive error\n");
     exit(1);
   }
   string user(buf);
+  //continue to prompt for user if user not in online users map
   while (online_users.find(user) == online_users.end()){
     if (send(s, n.c_str(), strlen(n.c_str()), 0) == -1){
       perror("Send error\n");
@@ -138,22 +152,26 @@ void private_message(string username, int s){
     exit(1);
   }
   bzero(buf, MAX_LINE);
+  //receive confirmation of confirmation
   if (recv(s, buf, sizeof(buf), 0) == -1){
     perror("Receive error\n");
     exit(1);
   }
   string in(buf);
+  //send message prompt
   if (send(s, m.c_str(), strlen(m.c_str()), 0) == -1){
     perror("Send error\n");
     exit(1);
   }
   bzero(buf, MAX_LINE);
+  //receive message
   if (recv(s, buf, sizeof(buf), 0) == -1){
     perror("Receive error\n");
     exit(1);
   }
   string message(buf);
   message = "D####\tMessage received from " + username + ": " + message + "\t####";
+  //send message to specified user
   if (send(online_users[user], message.c_str(), strlen(message.c_str()), 0) == -1){
     perror("Send error\n");
     exit(1);
@@ -165,6 +183,7 @@ void *clientinteraction(void *s){
   string user = login(new_s);
   while (1){
     string op = "CEnter P for private conversation\nEnter B for message broadcasting\nEnter E for Exit\n";
+    //prompt user for operation
     if (send(new_s, op.c_str(), strlen(op.c_str()), 0) == -1){
       perror("Send error\n");
       exit(1);
@@ -189,9 +208,9 @@ void *clientinteraction(void *s){
 
 
 int main(int argc, char * argv[]) {
-	string line;
 	string user;
 	string password;
+  //read in user names and password from file at beginning of program execution and add to map
 	ifstream ifs("user_passwords.txt");
 	if (ifs.is_open()) {
 		while (ifs >> user) {
@@ -241,8 +260,6 @@ int main(int argc, char * argv[]) {
 		}
 		cout << "Connection accepted.\n";
 		pthread_t thread;
-    //may have to create custom struct
-		//struct thread_args args;
 		NUM_THREADS++;
 
 		if (pthread_create(&thread, NULL, clientinteraction, (void*)&client_sock) < 0) {
