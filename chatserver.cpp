@@ -54,7 +54,13 @@ void login(int s, char username[], unordered_map<string, string> &userPasswordKe
     }
     string bufPass(buf);
 		userPasswordKey[userstring] = bufPass;	
-	}
+	ofstream ofs;
+	ofs.open("user_passwords.txt");
+	ofs << userstring << " " << bufPass << "\n";
+	}	
+	
+	
+		
 }
 
 int main(int argc, char * argv[]) {
