@@ -1,15 +1,21 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
-#include <string>
-#include <unorder_map>
+#include <string.h>
+#include <unordered_map>
 #include <pthread.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <fcntl.h>
 using namespace std;
 
-void login(int s, char[] username, unordered_map<string, string> &userPasswordKey) {
+void login(int s, char username[], unordered_map<string, string> &userPasswordKey) {
 	string userstring(username);
 	auto search = userPasswordKey.find(userstring);
-	char bufPass[496];
+	char buf[496];
 	if (search != userPasswordKey.end()) { // in map
 		if (send(s, "E", sizeof("N"), 0) == -1) {
 			perror("Send error\n");
@@ -64,6 +70,7 @@ int main(int argc, char * argv[]) {
 	}
 	ifs.close();
 
+/*
 
 	while((client_sock = accept(s.get_s(), (struct sockaddr *)&s.s_in, &s_inlen)) > 0) {
 		if (NUM_THREADS == 10) {
@@ -82,4 +89,5 @@ int main(int argc, char * argv[]) {
 	}
 
 	//s.close_socket(0);
+*/
 }
