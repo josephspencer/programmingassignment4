@@ -61,7 +61,14 @@ void private_message(int s){
 
   }
   string m;
-  cin >> m;
+  char d;
+  //throw away junk newline
+  cin.get(d);
+  do{
+    cin.get(d);
+    m += d;
+  } while (d!='\n');
+  m.pop_back();
   //send message
   if (send(s, m.c_str(), strlen(m.c_str()), 0) == -1){
     perror("Send error\n");
@@ -80,7 +87,14 @@ void broadcast(int s){
 
   }
   string m;
-  cin >> m;
+  char c;
+  //throw away junk newline
+  cin.get(c);
+  do{
+    cin.get(c);
+    m += c;
+  } while (c!='\n');
+  m.pop_back();
   //send message
   if (send(s, m.c_str(), strlen(m.c_str()), 0) == -1){
     perror("Send error\n");
@@ -100,7 +114,13 @@ void *handle_messages(void *s){
     string output(buf);
     if (!strncmp(buf, "D", 1)){
       //if data message, display incoming message and then previous command from server
-      cout << "Incoming message\n" << output.substr(1) << endl << LAST_COMMAND << std::flush;
+      if (!strncmp(buf, "D#", 2)){
+        //if message from another user
+        cout << "Incoming message\n" << output.substr(1) << endl << LAST_COMMAND << std::flush;
+      } else {
+        //if confirmation from server that message has been sent
+        cout << output.substr(1) << std::flush;
+      }
     } else {
       //if command message, display it and update global string
       cout << output.substr(1) << std::flush;

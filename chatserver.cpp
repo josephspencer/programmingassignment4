@@ -109,6 +109,10 @@ void broadcast_message(string username, int s){
       }
     }
   }
+  if (send(s, "DMessage sent\n", strlen("DMessage sent\n"), 0) == -1){
+    perror("Send error\n");
+    exit(1);
+  }
 }
 
 void private_message(string username, int s){
@@ -116,7 +120,8 @@ void private_message(string username, int s){
   string n = "CUsers online:\n";
   //add online users to string to send to sending user
   for (auto u : online_users){
-    n = n + u.first + "\n";
+    if (u.first != username)
+      n = n + u.first + "\n";
   }
   n += "Enter user: ";
   //send list of users and prompt for user
@@ -176,6 +181,10 @@ void private_message(string username, int s){
     perror("Send error\n");
     exit(1);
   }
+  if (send(s, "DMessage sent\n", strlen("DMessage sent\n"), 0) == -1){
+    perror("Send error\n");
+    exit(1);
+  }
 }
 
 void *clientinteraction(void *s){
@@ -196,6 +205,7 @@ void *clientinteraction(void *s){
     if (!strncmp("E", buf, 1)){
       cout << "EXIT" << endl;
       NUM_THREADS--;
+      close(new_s);
       online_users.erase(user);
       pthread_exit(NULL);
     } else if (!strncmp("B", buf, 1)){
