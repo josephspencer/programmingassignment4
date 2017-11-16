@@ -1,3 +1,5 @@
+//Shane Brosnan(sbrosna1), Joseph Spencer(jspence5), Tommy Lynch(tlynch)
+//chatclient.cpp
 #include <iostream>
 #include <pthread.h>
 #include <unistd.h>

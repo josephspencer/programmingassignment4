@@ -1,3 +1,5 @@
+//Shane Brosnan(sbrosna1), Joseph Spencer(jspence5), Tommy Lynch(tlynch)
+//chatserver.cpp
 #include <iostream>
 #include <iomanip>
 #include <fstream>
